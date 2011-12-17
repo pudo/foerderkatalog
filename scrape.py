@@ -33,6 +33,7 @@ def get_fkzs_page(session, lps):
 
 def get_fkzs():
     session = requests.session()
+    session.config['max_retries'] = 5
     res = session.get(LPSLIST)
     doc = html.document_fromstring(res.content)
     for a in doc.findall('.//tr//a'):
