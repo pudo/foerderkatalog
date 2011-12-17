@@ -8,16 +8,19 @@ from lxml import html
 import logging
 import requests
 
+LPSLIST = "http://foerderportal.bund.de/foekat/jsp/LovAction.do?actionMode=searchlist&lov.sqlIdent=lpsys&lov.openerField=suche_lpsysSuche_0_&lov.ZeSt="
 URL = "http://foerderportal.bund.de/foekat/jsp/SucheAction.do"
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
-def get_fkzs_time_period(session, start, end):
+def get_fkzs_page(session, lps):
+    res = session.get(URL, params={"actionMode":"searchreset"})
     data = {"actionMode":"searchlist",
-            "suche.laufzeitVon": start.strftime("%d.%m.%Y"),
-            "suche.laufzeitBis": end.strftime("%d.%m.%Y"),
+            #"suche.laufzeitVon": start.strftime("%d.%m.%Y"),
+            #"suche.laufzeitBis": end.strftime("%d.%m.%Y"),
             "suche.lfdVhb":"N",
+            "suche.lpsysSuche[0]": lps + "%",
             "suche.ZeSt":"ZE",
             "suche.ausdruckSuchParam":"0",
             "general.search":"Suche starten"}
@@ -30,17 +33,13 @@ def get_fkzs_time_period(session, start, end):
 
 def get_fkzs():
     session = requests.session()
-    begin = datetime(1949, 5, 23)
-    #begin = datetime(1979, 5, 23)
-    interval = timedelta(days=3*30)
-    while True:
-        end = begin + interval
-        log.info("Period under consideratin: %s", end)
-        for id in get_fkzs_time_period(session, begin, end):
+    res = session.get(LPSLIST)
+    doc = html.document_fromstring(res.content)
+    for a in doc.findall('.//tr//a'):
+        lps = a.text.strip().split()[0]
+        log.info("LPS: %s", lps)
+        for id in get_fkzs_page(session, lps):
             yield session, id
-        if end > datetime.now():
-            break
-        begin = end
     
 def get_by_fkz(session, fkz):
     res = session.get(URL, params={'actionMode': 'view', 'fkz': fkz})
