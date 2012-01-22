@@ -1,8 +1,8 @@
 #coding: utf-8
 
-import sqlite3
 import sys
 import csv
+import sqlaload as sl
 from urllib import urlopen
 from datetime import datetime
 
@@ -10,7 +10,7 @@ from recon import public_body
 
 LPS_URL = 'leistungsplan_systematik.csv'
 
-def integrate_lps(conn, table):
+def integrate_lps(engine, table):
     fh = urlopen(LPS_URL)
     lp4 = {}
     lp3 = {}
@@ -23,30 +23,25 @@ def integrate_lps(conn, table):
         lp3[id[:4]] = row
         lp2[id[:2]] = row
         lp1[id[:1]] = row
-    for col in ['lp1_name', 'lp1_label', 'lp2_name', 'lp2_label', 'lp3_name',
-                'lp3_label', 'lp4_label', 'lp4_name', 'hh_titel']:
-        try:
-            conn.execute("ALTER TABLE %s ADD COLUMN %s TEXT" % (table, col))
-        except: pass
-    c = conn.cursor()
-    c.execute("SELECT DISTINCT leistungsplan_systematik FROM %s" % table)
-    for row in c:
-        lp = row[0].split()[0].strip()
-        lp_desc = row[0].split('\t', 1)[-1].strip()
-        conn.execute('UPDATE %s SET lp1_name = ?, lp1_label = ?, '
-                     'lp2_name = ?, lp2_label = ?, lp3_name = ?, '
-                     'lp3_label = ?, lp4_label = ?, lp4_name = ?, '
-                     'hh_titel = ? '
-                     'WHERE leistungsplan_systematik = ?' % table,
-                     (lp[:1], lp1.get(lp[:1], {}).get('Ebene1_Name'), 
-                      lp[:2], lp2.get(lp[:2], {}).get('Ebene2_Name'), 
-                      lp[:4], lp3.get(lp[:4], {}).get('Ebene3_Name'), 
-                      lp, lp4.get(lp, {}).get('Bezeichnung', lp_desc),
-                      lp4.get(lp, {}).get('Kapitel/Titel'),
-                      row[0]))
-        conn.commit()
+    for row in sl.distinct(engine, table, 'leistungsplan_systematik'):
+        lp_ = row['leistungsplan_systematik']
+        lp = lp_.split()[0].strip()
+        lp_desc = lp_.split('\t', 1)[-1].strip()
+        sl.upsert(engine, table, {
+            'leistungsplan_systematik': lp_,
+            'lp1_name': lp[:1], 
+            'lp1_label': lp1.get(lp[:1], {}).get('Ebene1_Name'), 
+            'lp2_name': lp[:2], 
+            'lp2_label': lp2.get(lp[:2], {}).get('Ebene2_Name'), 
+            'lp3_name': lp[:4], 
+            'lp3_label': lp3.get(lp[:4], {}).get('Ebene3_Name'), 
+            'lp4_name': lp, 
+            'lp4_label': lp4.get(lp, {}).get('Bezeichnung', lp_desc),
+            'hh_titel': lp4.get(lp, {}).get('Kapitel/Titel')
+            }, 
+            ['leistungsplan_systematik'])
 
-def integrate_ressort(conn, table):
+def integrate_ressort(engine, table):
     RESSORTS = {
         'BMBF': u'Bundesministerium für Bildung und Forschung',
         'BMELV': u'Bundesministerium für Ernährung, Landwirtschaft und Verbraucherschutz',
@@ -54,45 +49,35 @@ def integrate_ressort(conn, table):
         'BMWi': u'Bundesministerium für Wirtschaft und Technologie',
         'BMVBS': u'Bundesministerium für Verkehr, Bau und Stadtentwicklung'
         }
-    for col in ['ressort_label', 'ressort_uri']:
-        try:
-            conn.execute("ALTER TABLE %s ADD COLUMN %s TEXT" % (table, col))
-        except: pass
-    c = conn.cursor()
-    c.execute("SELECT DISTINCT ressort FROM %s" % table)
-    for row in c:
-        r = row[0].strip()
+    for row in sl.distinct(engine, table, 'ressort'):
+        r = row['ressort'].strip()
         r_label = RESSORTS[r]
         r_uri = None
         results = public_body(r_label, jurisdiction="DE")
         if results:
             r_uri = results[0].uri
-        conn.execute('UPDATE %s SET ressort_label = ?, ressort_uri = ? WHERE ressort = ?' % table,
-                (r_label, r_uri, row[0]))
-        conn.commit()
+        sl.upsert(engine, table, {'ressort': row['ressort'],
+                                  'ressort_label': r_label,
+                                  'ressort_uri': r_uri}, 
+                                  ['ressort'])
 
-def fix_formats(conn, table):
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT fkz, foerdersumme, laufzeit_von, laufzeit_bis FROM %s" % table)
-    for row in c:
+def fix_formats(engine, table):
+    for row in sl.all(engine, table):
         summe = row['foerdersumme'].split(' ', 1)[0]
         summe = summe.replace(".", "").replace(",", ".")
-        von = datetime.strptime(row['laufzeit_von'], '%d.%m.%Y').strftime('%Y-%m-%d')
-        bis = datetime.strptime(row['laufzeit_bis'], '%d.%m.%Y').strftime('%Y-%m-%d')
-        conn.execute('UPDATE %s SET foerdersumme = ?, laufzeit_von = ?, '
-                     'laufzeit_bis = ? WHERE fkz = ?' % table,
-                     (summe, von, bis, row[0]))
-        conn.commit()
-
+        row['foerdersumme_num'] = float(summe)
+        row['laufzeit_von_dt'] = datetime.strptime(row['laufzeit_von'], '%d.%m.%Y')
+        row['laufzeit_bis_dt'] = datetime.strptime(row['laufzeit_bis'], '%d.%m.%Y')
+        sl.upsert(engine, table, row, ['fkz'])
 
 if __name__ == '__main__':
-    assert len(sys.argv)==3, "Usage: %s {lps} [sqlite-db]"
+    assert len(sys.argv)==3, "Usage: %s {lps,res,fix} [engine-url]"
     op = sys.argv[1]
-    conn = sqlite3.connect(sys.argv[2])
+    engine = sl.connect(sys.argv[2])
+    table = sl.get_table(engine, 'fk')
     ops = {
         'lps': integrate_lps,
         'res': integrate_ressort,
         'fix': fix_formats,
-        }.get(op)(conn, 'fk'),
+        }.get(op)(engine, table)
 

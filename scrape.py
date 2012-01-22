@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from StringIO import StringIO
 import csv
-import sqlite3
+import sqlaload as sl
 #from time import sleep
 from pprint import pprint
 from lxml import html
@@ -73,28 +73,17 @@ def get_by_fkz(session, fkz):
     return out
 
 
-def scrape(file_name, table="fk"):
-    conn = sqlite3.connect(file_name)
+def scrape(engine_url, table="fk"):
+    engine = sl.connect(engine_url)
+    table = sl.get_table(engine, table)
     for i, (session, fkz) in enumerate(get_fkzs()):
-        if i == 0:
-            row = get_by_fkz(session, fkz)
-            try:
-                keys = sorted(row.keys())
-                cols = ", ".join(["\"%s\" TEXT" % k for k in keys])
-                conn.execute("CREATE TABLE %s (%s)" % (table, cols))
-            except Exception,e:
-                log.exception(e)
-        c = conn.cursor()
-        c.execute("SELECT * FROM %s WHERE fkz = ?" % table, (fkz,))
-        if len(list(c)):
+        row = sl.find_one(engine, table, fkz=fkz)
+        if row is not None:
             log.debug("FKZ exists: %s", fkz)
             continue
         row = get_by_fkz(session, fkz)
-        quotes = ", ".join(["?"] * len(row))
-        conn.execute("INSERT INTO %s VALUES (%s)" % (table, quotes),
-                [row[k] for k in sorted(row.keys())])
-        conn.commit()
+        sl.upsert(engine, table, row, ['fkz'])
         log.debug("Saved: %s", fkz)
 
 if __name__ == '__main__':
-    scrape("fk.db")
+    scrape("sqlite:///fk.db")
