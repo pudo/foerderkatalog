@@ -28,8 +28,10 @@ def get_fkzs_page(session, lps):
     res = session.get(URL, params={"actionMode":"print", "presentationType":"csv"})
     reader = csv.DictReader(StringIO(res.content.encode('utf-8')), delimiter=';')
     for row in reader:
-        fkz = row.get('="FKZ"').split('"')[1]
-        yield fkz
+        fkz = row.get('="FKZ"')
+        if fkz:
+            fkz = fkz.split('"')[1]
+            yield fkz.decode('utf-8')
 
 def get_fkzs():
     session = requests.session()
