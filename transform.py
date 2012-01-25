@@ -70,8 +70,13 @@ def fix_formats(engine, table):
         row['laufzeit_bis_dt'] = datetime.strptime(row['laufzeit_bis'], '%d.%m.%Y')
         sl.upsert(engine, table, row, ['fkz'])
 
+def dump_table(engine, table):
+    file_name = 'fk-%s.csv' % datetime.utcnow().strftime("%Y-%m-%d")
+    fh = open(file_name, 'wb')
+    sl.dump_csv(sl.all(engine, table), fh)
+
 if __name__ == '__main__':
-    assert len(sys.argv)==3, "Usage: %s {lps,res,fix} [engine-url]"
+    assert len(sys.argv)==3, "Usage: %s {lps,res,fix,dump} [engine-url]"
     op = sys.argv[1]
     engine = sl.connect(sys.argv[2])
     table = sl.get_table(engine, 'fk')
@@ -79,5 +84,6 @@ if __name__ == '__main__':
         'lps': integrate_lps,
         'res': integrate_ressort,
         'fix': fix_formats,
+        'dump': dump_table
         }.get(op)(engine, table)
 
