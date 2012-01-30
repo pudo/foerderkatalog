@@ -52,6 +52,8 @@ def integrate_ressort(engine, table):
     for row in sl.distinct(engine, table, 'ressort'):
         r = row['ressort'].strip()
         r_label = RESSORTS[r]
+        if not r in RESSORTS:
+            continue
         r_uri = None
         results = public_body(r_label, jurisdiction="DE")
         if results:
@@ -64,8 +66,8 @@ def integrate_ressort(engine, table):
 def fix_formats(engine, table):
     for row in sl.all(engine, table):
         summe = row['foerdersumme'].split(' ', 1)[0]
-        summe = summe.replace(".", "").replace(",", ".")
-        row['foerdersumme_num'] = float(summe)
+        summe = summe.replace(".", "").replace(",", ".").strip()
+        row['foerdersumme_num'] = float(summe or 0.0)
         row['laufzeit_von_dt'] = datetime.strptime(row['laufzeit_von'], '%d.%m.%Y')
         row['laufzeit_bis_dt'] = datetime.strptime(row['laufzeit_bis'], '%d.%m.%Y')
         sl.upsert(engine, table, row, ['fkz'])
