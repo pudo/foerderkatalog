@@ -7,12 +7,13 @@ from lxml import html
 import logging
 import requests
 
-from common import engine
+from common import table
 
 LPSLIST = "http://foerderportal.bund.de/foekat/jsp/LovAction.do?actionMode=searchlist&lov.sqlIdent=lpsys&lov.openerField=suche_lpsysSuche_0_&lov.ZeSt="
 URL = "http://foerderportal.bund.de/foekat/jsp/SucheAction.do"
 
 log = logging.getLogger(__name__)
+
 
 def get_fkzs_page(session, lps):
     res = session.get(URL, params={"actionMode":"searchreset"})
@@ -98,7 +99,6 @@ def get_by_fkz(session, fkz):
 
 
 def scrape():
-    table = engine.get_table('foerderungen')
     for i, (session, fkz) in enumerate(get_fkzs()):
         row = table.find_one(fkz=fkz)
         if row is not None:
