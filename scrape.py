@@ -94,7 +94,7 @@ def get_by_fkz(session, fkz):
         out['ausfuehrende_stelle_ort'] = tds[37]
         out['ausfuehrende_stelle_land'] = tds[39]
         out['ausfuehrende_stelle_staat'] = tds[41]
-    pprint(out)
+    #pprint(out)
     return out
 
 
