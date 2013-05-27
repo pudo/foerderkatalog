@@ -1,0 +1,10 @@
+{
+    "key": "foerderkatalog",
+    "label": "Förderkatalog der Bundesregierung",
+    "url": "http://foerderportal.bund.de/",
+    "events": [{
+        "key": "project",
+        "label": "Projekt",
+        "template": "Das {{entity ressort}} hat {{foerdersumme}} an {{entity zuwendungsempfaenger_name}} für ein Projekt zum Thema <em>{{thema}}</em> vergeben. Das Projekt wird ab dem {{laufzeit_von}} von {{entity ausfuehrende_stelle_name}} umgesetzt."
+    }]
+}
