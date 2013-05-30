@@ -16,22 +16,29 @@ log = logging.getLogger(__name__)
 
 
 def get_fkzs_page(session, lps):
-    res = session.get(URL, params={"actionMode":"searchreset"})
-    data = {"actionMode":"searchlist",
-            #"suche.laufzeitVon": start.strftime("%d.%m.%Y"),
-            #"suche.laufzeitBis": end.strftime("%d.%m.%Y"),
-            "suche.lfdVhb":"N",
-            "suche.lpsysSuche[0]": lps + "%",
-            "suche.ZeSt":"ZE",
-            "suche.ausdruckSuchParam":"0",
-            "general.search":"Suche starten"}
+    res = session.get(URL, params={"actionMode": "searchreset"})
+    data = {
+        "actionMode": "searchlist",
+        #"suche.laufzeitVon": start.strftime("%d.%m.%Y"),
+        #"suche.laufzeitBis": end.strftime("%d.%m.%Y"),
+        "suche.lfdVhb": "N",
+        "suche.lpsysSuche[0]": lps + "%",
+        "suche.ZeSt": "ZE",
+        "suche.ausdruckSuchParam": "0",
+        "general.search": "Suche starten"
+    }
     res = session.post(URL, data=data)
-    res = session.get(URL, params={"actionMode":"print", "presentationType":"csv"})
+    res = session.get(URL, params={
+        "actionMode": "print",
+        "presentationType": "csv"
+    })
     reader = csv.DictReader(StringIO(res.content), delimiter=';')
     for row in reader:
         fkz = row.get('="FKZ"')
         if fkz:
-            yield fkz.split('"')[1]
+            fkz = fkz.split('"')[1]
+            yield fkz.decode('utf-8')
+
 
 def get_fkzs():
     session = requests.Session()
