@@ -1,17 +1,15 @@
 from datastringer import DataStringer
-from common import table
-import urllib
-
-URL_BASE = "http://foerderportal.bund.de/foekat/jsp/SucheAction.do?actionMode=view&fkz=%s"
+from common import table, date
 
 
 def submit_all():
-    stringer = DataStringer(host='http://localhost:5000', service='foerderkatalog', event='project')
-    for row in list(table.find(datawire_submitted=False)):
+    stringer = DataStringer(service='foerderkatalog', event='project')
+    for row in list(table.find()):
         if 'datawire_submitted' in row:
+            if row['datawire_submitted']:
+                continue
             del row['datawire_submitted']
-        row['source_url'] = URL_BASE % urllib.quote_plus(row['fkz'])
-        stringer.submit(row)
+        stringer.submit(row, source_url=row.get('url'), action_at=date(row.get('laufzeit_von')))
         table.update({'datawire_submitted': True, 'fkz': row['fkz']}, ['fkz'])
 
 

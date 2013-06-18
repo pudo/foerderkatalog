@@ -7,7 +7,7 @@ from common import table
 log = logging.getLogger(__name__)
 
 URL = "http://foerderportal.bund.de/foekat/jsp/SucheAction.do"
-XPATH = './/div[@class="content_background_inner"]//td/a[@title="Detailansicht"]'
+XPATH = './/div[@class="content_background_inner"]//td[0]/a[@title="Detailansicht"]'
 #PAGE = 50
 PAGE = 1000
 

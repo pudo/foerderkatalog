@@ -2,6 +2,7 @@
     "key": "foerderkatalog",
     "label": "Förderkatalog der Bundesregierung",
     "url": "http://foerderportal.bund.de/",
+    "editors": [1, 2],
     "events": [{
         "key": "project",
         "label": "Projekt",
