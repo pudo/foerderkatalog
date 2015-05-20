@@ -1,14 +1,13 @@
 import logging
 import requests
 from lxml import html
-
-from common import table
+import dataset
+from datetime import datetime
 
 log = logging.getLogger(__name__)
 
 URL = "http://foerderportal.bund.de/foekat/jsp/SucheAction.do"
-XPATH = './/div[@class="content_background_inner"]//td[0]/a[@title="Detailansicht"]'
-#PAGE = 50
+XPATH = './/div[@class="content_background_inner"]//td[1]/a[@title="Detailansicht"]'
 PAGE = 1000
 
 FIELDS = {
@@ -36,6 +35,22 @@ FIELDS = {
 }
 
 
+engine = dataset.connect('sqlite:///data.sqlite')
+table = engine.get_table('data')
+
+logging.basicConfig(level=logging.DEBUG)
+requests_log = logging.getLogger("requests")
+requests_log.setLevel(logging.WARNING)
+
+
+def date(row):
+    try:
+        data = row.get('Veroffentlichungsdatum')
+        return datetime.strptime(data, '%d.%m.%Y')
+    except:
+        return
+
+
 def run_query():
     session = requests.Session()
     while True:
@@ -48,7 +63,7 @@ def run_query():
                 'suche.ausdruckSuchParam': '0',
                 'general.search': 'Suche starten'
             })
-            if not 'Suchergebnis' in res.content:
+            if 'Suchergebnis' not in res.content:
                 return None
             doc = html.fromstring(res.content)
             select = doc.findall('.//form[@id="listselect"]//option')[-1].text
@@ -112,7 +127,6 @@ def scrape():
     for fkz in get_fkzs():
         row = table.find_one(fkz=fkz)
         if row is not None:
-            log.debug("FKZ exists: %s", fkz)
             continue
         row = get_by_fkz(fkz)
         table.upsert(row, ['fkz'])
@@ -121,4 +135,3 @@ def scrape():
 
 if __name__ == '__main__':
     scrape()
-    #get_by_fkz(requests, '0315844A')
