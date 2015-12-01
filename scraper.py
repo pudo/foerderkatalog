@@ -1,3 +1,4 @@
+import os
 import logging
 import requests
 from lxml import html
@@ -35,8 +36,9 @@ FIELDS = {
 }
 
 
-engine = dataset.connect('sqlite:///data.sqlite')
-table = engine.get_table('data')
+db = os.environ.get('DATABASE_URI', 'sqlite:///data.sqlite')
+engine = dataset.connect(db)
+table = engine.get_table('de_foerderkatalog')
 
 logging.basicConfig(level=logging.DEBUG)
 requests_log = logging.getLogger("requests")
