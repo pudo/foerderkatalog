@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 import requests
 from lxml import html
@@ -35,6 +36,10 @@ FIELDS = {
     'ZE_Staat': 'empfaenger_staat',
 }
 
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (iPad; U; CPU OS 3_2_1 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Mobile/7B405'
+}
+
 
 db = os.environ.get('DATABASE_URI', 'sqlite:///data.sqlite')
 engine = dataset.connect(db)
@@ -55,6 +60,7 @@ def date(row):
 
 def run_query():
     session = requests.Session()
+    session.headers.update(HEADERS)
     while True:
         try:
             res = session.post(URL, data={
@@ -65,14 +71,18 @@ def run_query():
                 'suche.ausdruckSuchParam': '0',
                 'general.search': 'Suche starten'
             })
-            if 'Suchergebnis' not in res.content:
-                return None
-            doc = html.fromstring(res.content)
-            select = doc.findall('.//form[@id="listselect"]//option')[-1].text
-            count = int(select.split()[-1])
-            return count, session
-        except requests.exceptions.ConnectionError:
-            pass
+            if 'Suchergebnis' in res.content:
+                doc = html.fromstring(res.content)
+                opts = doc.findall('.//form[@id="listselect"]//option')
+                select = opts[-1].text
+                print 'PAGES', select
+                count = int(select.split()[-1])
+                return count, session
+            else:
+                print res.content
+        except Exception, e:
+            log.exception(e)
+        time.sleep(10)
 
 
 def get_offset(session, offset):
@@ -113,7 +123,8 @@ def field(td):
 def get_by_fkz(fkz):
     while True:
         try:
-            res = requests.get(URL, params={'actionMode': 'view', 'fkz': fkz})
+            res = requests.get(URL, params={'actionMode': 'view', 'fkz': fkz},
+                               headers=HEADERS)
             doc = html.document_fromstring(res.content)
             tdtexts = [field(td) for td in doc.findall('.//td')]
             data = {'url': res.url}
@@ -125,12 +136,22 @@ def get_by_fkz(fkz):
             pass
 
 
+def clean_row(row):
+    summe = row.get('summe')
+    if len(summe):
+        summe = summe.strip().split(' ')[0]
+        summe = summe.replace('.', '').replace(',', '.')
+        row['summe_num'] = summe
+    return row
+
+
 def scrape():
     for fkz in get_fkzs():
         row = table.find_one(fkz=fkz)
         if row is not None:
             continue
         row = get_by_fkz(fkz)
+        row = clean_row(row)
         table.upsert(row, ['fkz'])
         log.debug("Saved: %s", fkz)
 
