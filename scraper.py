@@ -75,7 +75,6 @@ def run_query():
                 doc = html.fromstring(res.content)
                 opts = doc.findall('.//form[@id="listselect"]//option')
                 select = opts[-1].text
-                print 'PAGES', select
                 count = int(select.split()[-1])
                 return count, session
             else:
@@ -96,8 +95,10 @@ def get_offset(session, offset):
                 'suche.listrowfrom': offset
             })
             return html.fromstring(res.content)
-        except requests.exceptions.ConnectionError:
-            session = run_query()
+        except Exception as e:
+            log.exception(e)
+            time.sleep(5)
+            count, session = run_query()
 
 
 def get_fkzs():
@@ -132,8 +133,9 @@ def get_by_fkz(fkz):
                 if header:
                     data[FIELDS[text]] = tdtexts[i+1][1]
             return data
-        except requests.exceptions.ConnectionError:
-            pass
+        except Exception as e:
+            log.exception(e)
+            time.sleep(5)
 
 
 def clean_row(row):
