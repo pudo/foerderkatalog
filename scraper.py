@@ -140,7 +140,7 @@ def get_by_fkz(fkz):
 
 def clean_row(row):
     summe = row.get('summe')
-    if len(summe):
+    if summe is not None and len(summe):
         summe = summe.strip().split(' ')[0]
         summe = summe.replace('.', '').replace(',', '.')
         row['summe_num'] = summe
